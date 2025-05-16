@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./prisma/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String             @id @default(uuid())
+  email                    String             @unique
+  name                     String
+  password                 String
+  organization             String?
+  role                     UserRole           @default(CLIENT)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  resetPasswordToken       String?
+  resetPasswordTokenExpiry DateTime?
+  ActivityLog              ActivityLog[]
+  assignedComplaints       Complaint[]        @relation("AssignedComplaints")
+  complaints               Complaint[]        @relation("SubmittedComplaints")
+  responses                Response[]
+  complaintHistory         ComplaintHistory[]
+  teams                    TeamMember[]
+}
+
+model Project {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  logoUrl     String?
+  deployUrl   String?
+  teamId      String? // Add this field for the relation
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  complaints  Complaint[]
+  team        Team?       @relation(fields: [teamId], references: [id])
+}
+
+model Complaint {
+  id          String             @id @default(uuid())
+  projectId   String
+  clientId    String
+  assigneeId  String?
+  title       String
+  description String
+  category    Category
+  status      Status             @default(PENDING)
+  priority    Priority           @default(MEDIUM)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  attachments Attachment[]
+  assignee    User?              @relation("AssignedComplaints", fields: [assigneeId], references: [id])
+  client      User               @relation("SubmittedComplaints", fields: [clientId], references: [id])
+  project     Project            @relation(fields: [projectId], references: [id])
+  history     ComplaintHistory[]
+  responses   Response[]
+}
+
+model Response {
+  id          String       @id @default(uuid())
+  complaintId String
+  userId      String
+  message     String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  attachments Attachment[]
+  complaint   Complaint    @relation(fields: [complaintId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+}
+
+model Attachment {
+  id          String     @id @default(uuid())
+  fileName    String
+  fileType    String
+  filePath    String
+  fileSize    Int
+  complaintId String?
+  responseId  String?
+  createdAt   DateTime   @default(now())
+  complaint   Complaint? @relation(fields: [complaintId], references: [id])
+  response    Response?  @relation(fields: [responseId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  metadata  String?
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entityId  String
+  details   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum UserRole {
+  CLIENT
+  ADMIN
+  SUPPORT
+}
+
+enum Category {
+  BUG
+  DELAY
+  QUALITY
+  COMMUNICATION
+  OTHER
+}
+
+enum Status {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  WITHDRAWN
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  COMPLAINT_SUBMITTED
+  STATUS_UPDATED
+  NEW_RESPONSE
+  ASSIGNED
+  RESOLVED
+  TEAM_ADDED
+  TEAM_REMOVED
+}
+
+model ComplaintHistory {
+  id          String    @id @default(uuid())
+  complaint   Complaint @relation(fields: [complaintId], references: [id])
+  complaintId String
+  status      Status // Changed from ComplaintStatus to Status
+  message     String?
+  createdBy   User      @relation(fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime  @default(now())
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  projects    Project[]
+  members     TeamMember[]
+}
+
+// Add this new model for Team Members
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String
+  userId   String
+  role     String // Like "LEAD", "DEVELOPER", "DESIGNER", etc.
+  joinedAt DateTime @default(now())
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId]) // A user can only be in a team once
+}
