@@ -79,6 +79,7 @@ export class EmailService {
             </div>
             
             <p>Please log in to explore your administrative dashboard and complete your profile setup.</p>
+            <p>password: <Your_First_Name@321></p>
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="${process.env.FRONTEND_URL || 'https://projectpulse.example.com'}/login" 
