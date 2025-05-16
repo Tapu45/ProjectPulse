@@ -48,13 +48,19 @@ const Login = () => {
   
   // Check for saved credentials and tokens on component mount
   useEffect(() => {
-    // Check if user is already logged in with a valid token in localStorage
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    // Check all possible storage locations for auth data
+    const localToken = localStorage.getItem('token');
+    const localUser = localStorage.getItem('user');
+    const sessionToken = sessionStorage.getItem('token');
+    const sessionUser = sessionStorage.getItem('user');
     
-    if (token && user) {
+    // Use token from either storage location
+    const token = localToken || sessionToken;
+    const userStr = localUser || sessionUser;
+    
+    if (token && userStr) {
       try {
-        const userData = JSON.parse(user);
+        const userData = JSON.parse(userStr);
         // Redirect based on user role
         switch(userData.role) {
           case 'ADMIN':
@@ -72,11 +78,12 @@ const Login = () => {
           default:
             navigate('/dashboard');
         }
-        return; // Exit early if already logged in
       } catch (e) {
-        // Invalid user data in storage, continue with login
+        // Invalid user data in storage, clear everything
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
       }
     }
     
@@ -92,10 +99,15 @@ const Login = () => {
   
   const mutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      const response = await axios.post<LoginResponse>(API_ROUTES.AUTH.LOGIN, {
-        email: data.email,
-        password: data.password
-      });
+      // Add withCredentials for CORS with credentials
+      const response = await axios.post<LoginResponse>(
+        API_ROUTES.AUTH.LOGIN, 
+        {
+          email: data.email,
+          password: data.password
+        },
+        { withCredentials: true }
+      );
       return { ...response.data, rememberMe: data.rememberMe };
     },
     onSuccess: (data) => {
@@ -104,7 +116,7 @@ const Login = () => {
         localStorage.setItem('rememberedEmail', data.user.email);
         localStorage.setItem('rememberMe', 'true');
         
-        // Store in localStorage if remember me is checked (persists after browser close)
+        // Store in localStorage for persistent sessions
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
       } else {
@@ -112,30 +124,34 @@ const Login = () => {
         localStorage.removeItem('rememberedEmail');
         localStorage.setItem('rememberMe', 'false');
         
-        // Store in sessionStorage if remember me is not checked (cleared on browser close)
+        // Store in sessionStorage for session-only login
         sessionStorage.setItem('token', data.token);
         sessionStorage.setItem('user', JSON.stringify(data.user));
+        
         // Remove from localStorage to avoid conflicts
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
       
-      switch(data.user.role) {
-        case 'ADMIN':
-          navigate('/dashboard');
-          break;
-        case 'SUPPORT':
-          navigate('/assigned-complaints');
-          break;
-        case 'CLIENT':
-          navigate('/complaints');
-          break;
-        case 'STAFF':
-          navigate('/staff/dashboard');
-          break;
-        default:
-          navigate('/dashboard');
-      }
+      // Use setTimeout to ensure storage operations complete
+      setTimeout(() => {
+        switch(data.user.role) {
+          case 'ADMIN':
+            navigate('/dashboard');
+            break;
+          case 'SUPPORT':
+            navigate('/assigned-complaints');
+            break;
+          case 'CLIENT':
+            navigate('/complaints');
+            break;
+          case 'STAFF':
+            navigate('/staff/dashboard');
+            break;
+          default:
+            navigate('/dashboard');
+        }
+      }, 100);
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
