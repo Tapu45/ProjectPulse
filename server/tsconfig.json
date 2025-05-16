@@ -112,6 +112,10 @@
      "outDir": "./dist",                                  /* Specify an output folder for all emitted files. */
     
     /* Optional but recommended */
-    "rootDir": "./src",                                 /* Skip type checking all .d.ts files. */
+    "rootDir": "./src",
+    /* Add this to include only the files you want to compile */
+  "include": ["src/**/*"],
+  /* Exclude the prisma directory from compilation */
+  "exclude": ["node_modules", "prisma"]                                 /* Skip type checking all .d.ts files. */
   }
 }
