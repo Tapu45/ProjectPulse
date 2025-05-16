@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 
 export const ProjectPulseAnimation: React.FC = () => {
@@ -86,8 +86,7 @@ export const ProjectPulseAnimation: React.FC = () => {
           const startY = Math.random() * 100;
           const length = 60 + Math.random() * 100;
           const angle = Math.random() * 360;
-          const endX = startX + length * Math.cos(angle * Math.PI / 180);
-          const endY = startY + length * Math.sin(angle * Math.PI / 180);
+         
           
           return (
             <motion.div
