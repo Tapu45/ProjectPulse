@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { API_ROUTES } from '../../config/api';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { Activity, Info } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { LoginIllustrations } from '../../components/animations/Loginillustration';
 
 type LoginFormData = {
   email: string;
   password: string;
-  rememberMe: boolean;
 };
 
 type LoginResponse = {
@@ -31,127 +30,39 @@ type LoginResponse = {
 const Login = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [showRememberMeInfo, setShowRememberMeInfo] = useState(false);
   
   const { 
     register, 
     handleSubmit, 
-    setValue,
     formState: { errors, isSubmitting } 
-  } = useForm<LoginFormData>({
-    defaultValues: {
-      email: '',
-      password: '',
-      rememberMe: false
-    }
-  });
-  
-  // Check for saved credentials and tokens on component mount
-  useEffect(() => {
-    // Check all possible storage locations for auth data
-    const localToken = localStorage.getItem('token');
-    const localUser = localStorage.getItem('user');
-    const sessionToken = sessionStorage.getItem('token');
-    const sessionUser = sessionStorage.getItem('user');
-    
-    // Use token from either storage location
-    const token = localToken || sessionToken;
-    const userStr = localUser || sessionUser;
-    
-    if (token && userStr) {
-      try {
-        const userData = JSON.parse(userStr);
-        // Redirect based on user role
-        switch(userData.role) {
-          case 'ADMIN':
-            navigate('/dashboard');
-            break;
-          case 'SUPPORT':
-            navigate('/assigned-complaints');
-            break;
-          case 'CLIENT':
-            navigate('/complaints');
-            break;
-          case 'STAFF':
-            navigate('/staff/dashboard');
-            break;
-          default:
-            navigate('/dashboard');
-        }
-      } catch (e) {
-        // Invalid user data in storage, clear everything
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
-      }
-    }
-    
-    // If not logged in, check for remembered email
-    const savedEmail = localStorage.getItem('rememberedEmail');
-    const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
-    
-    if (savedEmail && savedRememberMe) {
-      setValue('email', savedEmail);
-      setValue('rememberMe', true);
-    }
-  }, [setValue, navigate]);
+  } = useForm<LoginFormData>();
   
   const mutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      // Add withCredentials for CORS with credentials
-      const response = await axios.post<LoginResponse>(
-        API_ROUTES.AUTH.LOGIN, 
-        {
-          email: data.email,
-          password: data.password
-        },
-        { withCredentials: true }
-      );
-      return { ...response.data, rememberMe: data.rememberMe };
+      const response = await axios.post<LoginResponse>(API_ROUTES.AUTH.LOGIN, data);
+      return response.data;
     },
     onSuccess: (data) => {
-      // Handle remember me functionality
-      if (data.rememberMe) {
-        localStorage.setItem('rememberedEmail', data.user.email);
-        localStorage.setItem('rememberMe', 'true');
-        
-        // Store in localStorage for persistent sessions
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } else {
-        // Clear remembered credentials if not checked
-        localStorage.removeItem('rememberedEmail');
-        localStorage.setItem('rememberMe', 'false');
-        
-        // Store in sessionStorage for session-only login
-        sessionStorage.setItem('token', data.token);
-        sessionStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Remove from localStorage to avoid conflicts
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
+      // Store token and user data in localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       
-      // Use setTimeout to ensure storage operations complete
-      setTimeout(() => {
-        switch(data.user.role) {
-          case 'ADMIN':
-            navigate('/dashboard');
-            break;
-          case 'SUPPORT':
-            navigate('/assigned-complaints');
-            break;
-          case 'CLIENT':
-            navigate('/complaints');
-            break;
-          case 'STAFF':
-            navigate('/staff/dashboard');
-            break;
-          default:
-            navigate('/dashboard');
-        }
-      }, 100);
+      switch(data.user.role) {
+        case 'ADMIN':
+          navigate('/dashboard');
+          break;
+        case 'SUPPORT':
+          navigate('/assigned-complaints');
+          break;
+        case 'CLIENT':
+          navigate('/complaints');
+          break;
+        case 'STAFF':
+          navigate('/staff/dashboard');
+          break;
+        default:
+          navigate('/dashboard');
+      }
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
@@ -235,34 +146,16 @@ const Login = () => {
             </div>
             
             <div className="flex items-center justify-between">
-              <div className="flex items-start relative">
+              <div className="flex items-start">
                 <div className="flex items-center h-5">
                   <input
-                    id="rememberMe"
+                    id="remember"
                     type="checkbox"
                     className="w-4 h-4 border border-gray-700 rounded bg-gray-800 focus:ring-[#00f697]"
-                    {...register('rememberMe')}
                   />
                 </div>
-                <div className="ml-3 text-sm flex items-center">
-                  <label htmlFor="rememberMe" className="text-gray-300">Remember me</label>
-                  <button
-                    type="button"
-                    className="ml-1 text-gray-400 hover:text-gray-200"
-                    onClick={() => setShowRememberMeInfo(!showRememberMeInfo)}
-                  >
-                    <Info size={14} />
-                  </button>
-                  
-                  {showRememberMeInfo && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="absolute top-6 left-0 bg-gray-800 text-gray-300 p-3 rounded-md shadow-lg text-xs w-64 z-10 border border-gray-700"
-                    >
-                      When checked, you'll stay signed in on this device and your email will be remembered. For security reasons, your password is never stored.
-                    </motion.div>
-                  )}
+                <div className="ml-3 text-sm">
+                  <label htmlFor="remember" className="text-gray-300">Remember me</label>
                 </div>
               </div>
               <Link to="/forgot-password" className="text-sm text-[#00f697] hover:underline">
