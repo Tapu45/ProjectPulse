@@ -114,8 +114,9 @@
     /* Optional but recommended */
     "rootDir": "./src",
     /* Add this to include only the files you want to compile */
+                             /* Skip type checking all .d.ts files. */
+  },
   "include": ["src/**/*"],
   /* Exclude the prisma directory from compilation */
-  "exclude": ["node_modules", "prisma"]                                 /* Skip type checking all .d.ts files. */
-  }
+  "exclude": ["node_modules", "prisma"]      
 }
